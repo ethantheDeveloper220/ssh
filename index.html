@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shape Classification Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .drag-item {
+            transition: all 0.3s ease;
+        }
+        .drag-item:hover {
+            transform: scale(1.05);
+        }
+        .drag-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+        .drop-zone {
+            transition: all 0.3s ease;
+        }
+        .drop-zone.drag-over {
+            background-color: #dbeafe;
+            border-color: #3b82f6;
+            transform: scale(1.02);
+        }
+        .correct-feedback {
+            animation: bounce 0.6s ease-in-out;
+        }
+        .incorrect-feedback {
+            animation: shake 0.5s ease-in-out;
+        }
+        @keyframes bounce {
+            0%, 20%, 53%, 80%, 100% { transform: translateY(0); }
+            40%, 43% { transform: translateY(-10px); }
+            70% { transform: translateY(-5px); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-100 to-blue-100 min-h-screen p-4">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">📐 Shape Classification Game</h1>
+            <p class="text-lg text-gray-600">Drag each shape to its correct category!</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-medium text-gray-700">Progress</span>
+                <span class="text-sm font-medium text-gray-700" id="progress-text">0 / 12 correct</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-3">
+                <div class="progress-bar bg-green-500 h-3 rounded-full" id="progress-bar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Score Display -->
+        <div class="flex justify-center gap-4 mb-6">
+            <div class="bg-green-500 text-white px-4 py-2 rounded-lg font-bold">
+                ✓ Correct: <span id="correct-count">0</span>
+            </div>
+            <div class="bg-red-500 text-white px-4 py-2 rounded-lg font-bold">
+                ✗ Incorrect: <span id="incorrect-count">0</span>
+            </div>
+        </div>
+
+        <!-- Game Area -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Animals to Sort -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">🎯 Shapes to Sort</h2>
+                    <div class="space-y-3" id="animals-container">
+                        <!-- Animals will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Buckets -->
+            <div class="lg:col-span-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Triangles -->
+                    <div class="drop-zone bg-white rounded-lg shadow-md p-4 border-2 border-dashed border-gray-300 min-h-64" 
+                         data-category="triangles">
+                        <h3 class="text-xl font-bold text-purple-600 mb-4 text-center">🔺 Triangles</h3>
+                        <p class="text-sm text-gray-600 text-center mb-4">3 sides, 3 angles, angles add up to 180°</p>
+                        <div class="space-y-2" id="triangles-items"></div>
+                    </div>
+
+                    <!-- Quadrilaterals -->
+                    <div class="drop-zone bg-white rounded-lg shadow-md p-4 border-2 border-dashed border-gray-300 min-h-64" 
+                         data-category="quadrilaterals">
+                        <h3 class="text-xl font-bold text-green-600 mb-4 text-center">🔷 Quadrilaterals</h3>
+                        <p class="text-sm text-gray-600 text-center mb-4">4 sides, 4 angles, angles add up to 360°</p>
+                        <div class="space-y-2" id="quadrilaterals-items"></div>
+                    </div>
+
+                    <!-- Circles -->
+                    <div class="drop-zone bg-white rounded-lg shadow-md p-4 border-2 border-dashed border-gray-300 min-h-64" 
+                         data-category="circles">
+                        <h3 class="text-xl font-bold text-blue-600 mb-4 text-center">⭕ Circles</h3>
+                        <p class="text-sm text-gray-600 text-center mb-4">Round shapes with no corners or straight edges</p>
+                        <div class="space-y-2" id="circles-items"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reset Button -->
+        <div class="text-center mt-8">
+            <button id="reset-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                🔄 Reset Game
+            </button>
+        </div>
+
+        <!-- Completion Message -->
+        <div id="completion-message" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-8 text-center max-w-md mx-4">
+                <h2 class="text-3xl font-bold text-green-600 mb-4">🎉 Congratulations!</h2>
+                <p class="text-lg text-gray-700 mb-4">You've successfully classified all the shapes!</p>
+                <p class="text-gray-600 mb-6">Final Score: <span id="final-score"></span></p>
+                <button id="play-again-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
+                    Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game data
+        const shapes = [
+            { name: "Right Triangle", category: "triangles", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="5,35 35,35 5,5" fill="#8B5CF6" stroke="#6D28D9" stroke-width="2"/></svg>' },
+            { name: "Square", category: "quadrilaterals", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><rect x="5" y="5" width="30" height="30" fill="#10B981" stroke="#059669" stroke-width="2"/></svg>' },
+            { name: "Circle", category: "circles", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" fill="#3B82F6" stroke="#1D4ED8" stroke-width="2"/></svg>' },
+            { name: "Equilateral Triangle", category: "triangles", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="20,5 35,30 5,30" fill="#8B5CF6" stroke="#6D28D9" stroke-width="2"/></svg>' },
+            { name: "Rectangle", category: "quadrilaterals", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><rect x="5" y="10" width="30" height="20" fill="#10B981" stroke="#059669" stroke-width="2"/></svg>' },
+            { name: "Oval", category: "circles", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><ellipse cx="20" cy="20" rx="15" ry="10" fill="#3B82F6" stroke="#1D4ED8" stroke-width="2"/></svg>' },
+            { name: "Isosceles Triangle", category: "triangles", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="20,8 32,32 8,32" fill="#8B5CF6" stroke="#6D28D9" stroke-width="2"/></svg>' },
+            { name: "Rhombus", category: "quadrilaterals", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="20,5 35,20 20,35 5,20" fill="#10B981" stroke="#059669" stroke-width="2"/></svg>' },
+            { name: "Perfect Circle", category: "circles", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="12" fill="#3B82F6" stroke="#1D4ED8" stroke-width="2"/></svg>' },
+            { name: "Parallelogram", category: "quadrilaterals", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="8,25 28,25 32,15 12,15" fill="#10B981" stroke="#059669" stroke-width="2"/></svg>' },
+            { name: "Scalene Triangle", category: "triangles", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="10,30 30,32 25,8" fill="#8B5CF6" stroke="#6D28D9" stroke-width="2"/></svg>' },
+            { name: "Trapezoid", category: "quadrilaterals", svg: '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="10,30 30,30 25,10 15,10" fill="#10B981" stroke="#059669" stroke-width="2"/></svg>' }
+        ];
+
+        let gameState = {
+            correct: 0,
+            incorrect: 0,
+            totalShapes: shapes.length,
+            placedShapes: 0
+        };
+
+        // Initialize game
+        function initGame() {
+            gameState = { correct: 0, incorrect: 0, totalShapes: shapes.length, placedShapes: 0 };
+            updateScore();
+            updateProgress();
+            
+            const container = document.getElementById('animals-container');
+            container.innerHTML = '';
+            
+            // Clear category containers
+            document.getElementById('triangles-items').innerHTML = '';
+            document.getElementById('quadrilaterals-items').innerHTML = '';
+            document.getElementById('circles-items').innerHTML = '';
+            
+            // Shuffle shapes for variety
+            const shuffledShapes = [...shapes].sort(() => Math.random() - 0.5);
+            
+            shuffledShapes.forEach((shape, index) => {
+                const shapeElement = document.createElement('div');
+                shapeElement.className = 'drag-item bg-yellow-100 border-2 border-yellow-300 rounded-lg p-3 cursor-move text-center font-medium hover:bg-yellow-200';
+                shapeElement.draggable = true;
+                shapeElement.dataset.category = shape.category;
+                shapeElement.dataset.id = index;
+                shapeElement.innerHTML = `<div class="flex justify-center mb-2">${shape.svg}</div><div class="text-sm">${shape.name}</div>`;
+                
+                shapeElement.addEventListener('dragstart', handleDragStart);
+                shapeElement.addEventListener('dragend', handleDragEnd);
+                
+                container.appendChild(shapeElement);
+            });
+        }
+
+        // Drag and drop handlers
+        function handleDragStart(e) {
+            e.target.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', e.target.dataset.category);
+            e.dataTransfer.setData('application/x-animal-id', e.target.dataset.id);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+
+        // Set up drop zones
+        document.querySelectorAll('.drop-zone').forEach(zone => {
+            zone.addEventListener('dragover', handleDragOver);
+            zone.addEventListener('drop', handleDrop);
+            zone.addEventListener('dragenter', handleDragEnter);
+            zone.addEventListener('dragleave', handleDragLeave);
+        });
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            if (!e.currentTarget.contains(e.relatedTarget)) {
+                e.currentTarget.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            
+            const shapeCategory = e.dataTransfer.getData('text/plain');
+            const shapeId = e.dataTransfer.getData('application/x-animal-id');
+            const dropZoneCategory = e.currentTarget.dataset.category;
+            
+            const draggedElement = document.querySelector(`[data-id="${shapeId}"]`);
+            
+            if (shapeCategory === dropZoneCategory) {
+                // Correct placement
+                gameState.correct++;
+                gameState.placedShapes++;
+                
+                // Move to correct category
+                const categoryContainer = document.getElementById(`${dropZoneCategory}-items`);
+                draggedElement.className = 'bg-green-100 border-2 border-green-400 rounded-lg p-2 text-center text-sm correct-feedback';
+                draggedElement.draggable = false;
+                categoryContainer.appendChild(draggedElement);
+                
+                showFeedback('Correct! Great job! 🎉', 'success');
+                
+            } else {
+                // Incorrect placement
+                gameState.incorrect++;
+                draggedElement.classList.add('incorrect-feedback');
+                
+                showFeedback(`Oops! That's not quite right. Try again! 🤔`, 'error');
+                
+                // Remove animation class after animation completes
+                setTimeout(() => {
+                    draggedElement.classList.remove('incorrect-feedback');
+                }, 500);
+            }
+            
+            updateScore();
+            updateProgress();
+            
+            // Check if game is complete
+            if (gameState.placedShapes === gameState.totalShapes) {
+                setTimeout(showCompletionMessage, 1000);
+            }
+        }
+
+        function showFeedback(message, type) {
+            // Remove existing feedback
+            const existingFeedback = document.querySelector('.feedback-message');
+            if (existingFeedback) {
+                existingFeedback.remove();
+            }
+            
+            const feedback = document.createElement('div');
+            feedback.className = `feedback-message fixed top-4 right-4 p-4 rounded-lg text-white font-bold z-40 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+            feedback.textContent = message;
+            
+            document.body.appendChild(feedback);
+            
+            setTimeout(() => {
+                feedback.remove();
+            }, 2000);
+        }
+
+        function updateScore() {
+            document.getElementById('correct-count').textContent = gameState.correct;
+            document.getElementById('incorrect-count').textContent = gameState.incorrect;
+        }
+
+        function updateProgress() {
+            const percentage = (gameState.placedShapes / gameState.totalShapes) * 100;
+            document.getElementById('progress-bar').style.width = percentage + '%';
+            document.getElementById('progress-text').textContent = `${gameState.placedShapes} / ${gameState.totalShapes} correct`;
+        }
+
+        function showCompletionMessage() {
+            const accuracy = Math.round((gameState.correct / gameState.totalShapes) * 100);
+            document.getElementById('final-score').textContent = `${gameState.correct}/${gameState.totalShapes} correct (${accuracy}% accuracy)`;
+            document.getElementById('completion-message').classList.remove('hidden');
+        }
+
+        // Event listeners
+        document.getElementById('reset-btn').addEventListener('click', initGame);
+        document.getElementById('play-again-btn').addEventListener('click', () => {
+            document.getElementById('completion-message').classList.add('hidden');
+            initGame();
+        });
+
+        // Start the game
+        initGame();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'980c2d7765dbee11',t:'MTc1ODE0OTU4NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
